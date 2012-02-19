@@ -673,26 +673,26 @@ module Git
     end
     
     def command(cmd, opts = [], chdir = true, redirect = '', &block)
-      ENV['GIT_DIR'] = @git_dir
-      ENV['GIT_INDEX_FILE'] = @git_index_file
-      ENV['GIT_WORK_TREE'] = @git_work_dir
       path = @git_work_dir || @git_dir || @path
 
-      opts = [opts].flatten.map {|s| escape(s) }.join(' ')
-      git_cmd = "git #{cmd} #{opts} #{redirect} 2>&1"
+      set_git_env(@git_dir, @git_index_file, @git_work_tree) do
+        opts = [opts].flatten.map {|s| escape(s) }.join(' ')
+        git_cmd = "git #{cmd} #{opts} #{redirect} 2>&1"
 
-      out = nil
-      if chdir && (Dir.getwd != path)
-        Dir.chdir(path) { out = run_command(git_cmd, &block) } 
-      else
-        out = run_command(git_cmd, &block)
+        out = nil
+        if chdir && (Dir.getwd != path)
+          Dir.chdir(path) { out = run_command(git_cmd, &block) } 
+        else
+          out = run_command(git_cmd, &block)
+        end
       end
       
       if @logger
         @logger.info(git_cmd)
         @logger.debug(out)
       end
-            
+      
+           
       if $?.exitstatus > 0
         if $?.exitstatus == 1 && out == ''
           return ''
@@ -713,6 +713,19 @@ module Git
     def escape(s)
       escaped = s.to_s.gsub('\'', '\'\\\'\'')
       %Q{"#{escaped}"}
+    end
+
+    def set_git_env(git_dir,git_index_file,git_work_tree)
+      hold_git_dir = ENV['GIT_DIR']
+      hold_git_index_file = ENV['GIT_INDEX_FILE']
+      hold_git_work_tree = ENV['GIT_WORK_TREE']
+      ENV['GIT_DIR'] = git_dir
+      ENV['GIT_INDEX_FILE'] = git_index_file
+      ENV['GIT_WORK_TREE'] = git_work_tree
+      yield #git_dir,git_index_file,git_work_tree
+      ENV['GIT_DIR'] = hold_git_dir
+      ENV['GIT_INDEX_FILE'] = hold_git_index_file
+      ENV['GIT_WORK_TREE'] = hold_git_work_tree
     end
 
   end
